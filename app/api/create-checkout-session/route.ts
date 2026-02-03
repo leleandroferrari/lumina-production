@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2026-01-28.clover' as any,
-})
+// Initialize Stripe lazily to prevent build failures if env var is missing
+const getStripe = () => {
+    if (!process.env.STRIPE_SECRET_KEY) {
+        throw new Error('STRIPE_SECRET_KEY is missing')
+    }
+    return new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: '2026-01-28.clover' as any,
+    })
+}
 
 export async function POST(req: NextRequest) {
     try {
@@ -18,6 +24,7 @@ export async function POST(req: NextRequest) {
         const { priceId } = await req.json()
 
         // Create Stripe checkout session
+        const stripe = getStripe()
         const session = await stripe.checkout.sessions.create({
             customer_email: user.email,
             line_items: [
